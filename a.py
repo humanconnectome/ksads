@@ -1,36 +1,14 @@
-# -*- coding: utf-8 -*-
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.5.2
-#   kernelspec:
-#     display_name: ccf
-#     language: python
-#     name: ccf
-# ---
-
-# %%
-from ccf.redcap import CachedRedcap
-
-# %%
-#!/usr/bin/python3
-from IPython.display import display, HTML
-import ipysheet
-import ipywidgets as wg
 import os
-import pandas as pd
-import PandasHelper as h
-from download.redcap import get_behavioral_ids, RedcapTable
-import numpy as np
 import re
-from ccf.config import LoadSettings
+
+import numpy as np
+import pandas as pd
+from IPython.core.display import display, HTML
+
+import PandasHelper as h
+from ksads_notebook import olddate, newdate, table, studyids, studydata, downloads_dir
 
 
-# %%
 def special_quotes(x):
     quotes = re.compile("[“”]")
     return x.apply(
@@ -38,58 +16,6 @@ def special_quotes(x):
         if x.dtype == "O"
         else x
     )
-
-
-def read_csv(date, form):
-    df = pd.read_csv(os.path.join(downloads_dir, date, form + ".csv"), low_memory=False)
-    return special_quotes(df)
-
-
-# %%
-redcap = CachedRedcap()
-
-# %%
-table = redcap("ksads")
-studyids = redcap.get_behavioral_ids()
-studydata = studyids[studyids.study != "parent"]
-
-# %%
-config = LoadSettings()
-
-# %%
-downloads_dir = config["KSADS"]["download_dir"]
-dates = sorted(os.listdir(downloads_dir))
-
-# %%
-dates
-
-
-# %%
-def read_csv(date, form):
-    df = pd.read_csv(os.path.join(downloads_dir, date, form + ".csv"), low_memory=False)
-    return df
-
-
-# %%
-df = read_csv(dates[-1], "intro")
-
-# %%
-df
-
-# %%
-df = special_quotes(df)
-
-# %%
-olddate = dates[0]
-newdate = dates[-1]
-
-
-def make_similar(df1, df2):
-    for name, column in df1.items():
-        if name in df2.columns:
-            dtype = column.dtype if column.notna().any() else df2[name].dtype
-            df2[name] = df2[name].astype(dtype)
-            df1[name] = df1[name].astype(dtype)
 
 
 class KsadForm:
@@ -272,7 +198,14 @@ class KsadForm:
         # ksads.warn_missing(missing, form)
 
 
-# %%
-intro = KsadForm("intro")
+def read_csv(date, form):
+    df = pd.read_csv(os.path.join(downloads_dir, date, form + ".csv"), low_memory=False)
+    return special_quotes(df)
 
-# %%
+
+def make_similar(df1, df2):
+    for name, column in df1.items():
+        if name in df2.columns:
+            dtype = column.dtype if column.notna().any() else df2[name].dtype
+            df2[name] = df2[name].astype(dtype)
+            df1[name] = df1[name].astype(dtype)
