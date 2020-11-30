@@ -46,24 +46,54 @@ class KsadForm:
             self.merged = self.redcap_df
 
     def show_deleted_rows(self):
-        if not self.deleted.empty:
-            display(
-                HTML(
-                    "<H3>Deleted Rows</H3><SMALL> The following rows have no longer exist on KSADS.net</SMALL>"
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
+        if not deleted.empty:
+            h.showbox(
+                """There are %s rows in the old data that has been removed in the new data.
+                            If this is expected, you can ignore this message.
+                            To further inspect rows type <code>data["deleted"]</code>"""
+                % len(deleted),
+                form + ": Deleted",
+                "danger",
                 )
-            )
-            display(ipysheet.sheet(ipysheet.from_dataframe(self.deleted)))
+            h.showdataframe(deleted)
+
 
     def show_modified_rows(self):
-        if not self.modified.empty:
-            display(
-                HTML(
-                    "<H3>Modified Rows</H3><SMALL> The following rows have been overwritten/modified on KSADS.net</SMALL>"
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
+        if not modified.empty:
+            h.showbox(
+                """There are %s rows in the old data that has been modified in the new data.
+                            If this is expected, you can ignore this message.
+                            To further inspect rows type <code>data["modified"]</code>"""
+                % len(modified),
+                form + ": Modified",
+                "danger",
                 )
-            )
-            display(ipysheet.sheet(ipysheet.from_dataframe(self.deleted)))
+            h.showdataframe(modified)
+
+    def warn_duplicates(self):
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
+        duplicates = df[df.duplicated(['patientid', 'patienttype'], keep=False)]
+        duplicates['reason'] = 'Duplicate IDs'
+        if duplicates.empty:
+            h.showbox(
+                """All patientid + patienttype combos are unique.""",
+                form + ": No Duplicates",
+                "success",
+                )
+        else:
+            h.showbox(
+                """There are %s rows that contain the same patientid + patienttype."""
+                % len(duplicates),
+                form + ": Duplicates",
+                "danger",
+                )
+            h.showdataframe(duplicates)
+            # raise Exception()
 
     def show_additional_info(self):
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
         show = self.added.dropna(subset=["additionalinfo"]).iloc[:, :6]
         if not show.empty:
             display(
@@ -74,6 +104,7 @@ class KsadForm:
             display(ipysheet.sheet(ipysheet.from_dataframe(show)))
 
     def show_modified(self):
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
         def update(btn):
             self.added = (
                 dups.loc[[dd.value for dd in selections]]
@@ -119,7 +150,28 @@ class KsadForm:
                 display(x)
             display(btn)
 
+    def warn_not_in_redcap(not_in_redcap, form):
+        not_in_redcap = h.difference(df, studyids.subject).copy()
+        not_in_redcap['reason'] = 'PatientID not in Redcap'
+        not_in_redcap.rename(columns={'sitename': 'site'}, inplace=True)
+
+        if not_in_redcap.empty:
+            h.showbox(
+                """All patientid's are in Redcap.""",
+                form + ": No Subject Missing from Redcap",
+                "success",
+                )
+        else:
+            h.showbox(
+                """There are %s rows with patientid missing from Redcap."""
+                % len(not_in_redcap),
+                form + ": Subjects Missing from Redcap",
+                "danger",
+                )
+            h.showdataframe(not_in_redcap)
+
     def show_not_in_redcap(self):
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
         df = self.merged.copy()
         df["subject"] = df["patientid"].str.split("_", 1, expand=True)[0].str.strip()
         not_in_redcap = h.diff(df, studyids.subject).iloc[:, :-1]
@@ -183,6 +235,7 @@ class KsadForm:
             display(fancy_widget)
 
     def show_missing_subjects(self):
+        form, added, deleted, modified = self.form, self.added, self.deleted, self.modified
         df = self.merged.copy()
         df["subject"] = df["patientid"].str.split("_", 1, expand=True)[0].str.strip()
         missing = h.diff(studydata, df.subject)
@@ -192,11 +245,39 @@ class KsadForm:
         missing = missing[missing.interview_date < "2019-05-01"]
         missing = missing[missing.study != "hcpa"]
         missing["reason"] = "Missing in Box"
+        self.warn_missing(missing, self.form)
         display(missing)
         return missing
         # data['missing'] = missing
         # ksads.warn_missing(missing, form)
 
+    def warn_missing(self, missing, form):
+        if missing.empty:
+            h.showbox(
+                """All patientid's are in New Data.""",
+                form + ": No Missing Redcap Subjects",
+                "success",
+                )
+        else:
+            h.showbox(
+                """There are %s Redcap subjects missing from the current data."""
+                % len(missing),
+                form + ": Redcap Subjects Missing",
+                "danger",
+                )
+            h.showdataframe(missing)
+
+    @staticmethod
+    def warn_good_import(added, deleted, form, modified):
+        if deleted.empty and modified.empty:
+            h.showbox(
+                """There are %s rows of new data and no unexpected changes to old data.
+                            Please proceed with <code>data["raw"]</code>."""
+                % len(added),
+                form + ": Importing Data",
+                "success",
+                )
+            h.showdataframe(added)
 
 def read_csv(date, form):
     df = pd.read_csv(os.path.join(downloads_dir, date, form + ".csv"), low_memory=False)
