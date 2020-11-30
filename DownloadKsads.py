@@ -9,8 +9,9 @@ from ccf.config import LoadSettings
 
 browser = RoboBrowser(history=True, timeout=6000, parser="lxml")
 
-config = LoadSettings()['KSADS']
-download_dir = config['download_dir']
+config = LoadSettings()["KSADS"]
+download_dir = config["download_dir"]
+
 
 def main():
     login()
@@ -20,40 +21,39 @@ def main():
 
 
 def login():
-    browser.open('https://ksads.net/Login.aspx')
-    form = browser.get_form('form1')
-    form['txtUsername'].value = config['user']
-    form['txtPassword'].value = config['password']
+    browser.open("https://ksads.net/Login.aspx")
+    form = browser.get_form("form1")
+    form["txtUsername"].value = config["user"]
+    form["txtPassword"].value = config["password"]
     browser.submit_form(form)
 
-    if browser.response.url == 'https://ksads.net/Login.aspx':
-        raise Exception('Incorrect credentials provided')
+    if browser.response.url == "https://ksads.net/Login.aspx":
+        raise Exception("Incorrect credentials provided")
         return False
     else:
-        print('Logged in.')
+        print("Logged in.")
         return True
-
 
 
 def download(siteid, studytype, name):
     # submit the report "type"
     print('Requesting "%s" from "%s"' % (studytype, name))
-    browser.open('https://ksads.net/Report/OverallReport.aspx')
-    form = browser.get_form('form1')
-    form['ddlGroupName'].value = str(siteid)
-    form['chkUserType'].value = studytype
-    browser.submit_form(form, form['btnexecute'])
+    browser.open("https://ksads.net/Report/OverallReport.aspx")
+    form = browser.get_form("form1")
+    form["ddlGroupName"].value = str(siteid)
+    form["chkUserType"].value = studytype
+    browser.submit_form(form, form["btnexecute"])
 
     # request the results
-    form = browser.get_form('form1')
-    form['ddlGroupName'].value = str(siteid)
-    form['chkUserType'].value = studytype
-    browser.submit_form(form, form['btnexportexcel'])
+    form = browser.get_form("form1")
+    form["ddlGroupName"].value = str(siteid)
+    form["chkUserType"].value = studytype
+    browser.submit_form(form, form["btnexportexcel"])
 
     # save results to file
     if browser.response.ok:
         content = browser.response.content
-        return pd.read_excel(BytesIO(content),  parse_dates=['DateofInterview'])
+        return pd.read_excel(BytesIO(content), parse_dates=["DateofInterview"])
     else:
         pd.DataFrame()
 
@@ -63,7 +63,7 @@ def download_all():
     Download the KSADS excel files. Returns the list of files downloaded.
     """
 
-    studytypes = config['forms']
+    studytypes = config["forms"]
 
     # the list of files that were downloaded, used as return value
     files = []
@@ -71,27 +71,29 @@ def download_all():
     # go through ever iteration of study site/type
     for studytype in studytypes:
         dfs = []
-        for name, siteid in config['siteids'].items():
+        for name, siteid in config["siteids"].items():
             dfs.append(download(siteid, studytype, name))
 
-        timestamp = datetime.today().strftime('%Y-%m-%d')
+        timestamp = datetime.today().strftime("%Y-%m-%d")
 
-        filename = os.path.join(download_dir, '{date}/{type}.csv')
+        filename = os.path.join(download_dir, "{date}/{type}.csv")
         filename = filename.format(date=timestamp, type=studytype)
         filename = os.path.abspath(filename)
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         files.append(filename)
 
-        df = pd.concat(dfs, sort=False).sort_values(['DateofInterview', 'ID'])
+        df = pd.concat(dfs, sort=False).sort_values(["DateofInterview", "ID"])
 
-        df.columns = ['ksads' + label if isnumeric else label.lower() \
-                      for label, isnumeric in zip(df.columns, df.columns.str.isnumeric())]
+        df.columns = [
+            "ksads" + label if isnumeric else label.lower()
+            for label, isnumeric in zip(df.columns, df.columns.str.isnumeric())
+        ]
 
         df.to_csv(filename, index=False)
-        print('Saving file %s' % filename)
+        print("Saving file %s" % filename)
 
     return files
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
