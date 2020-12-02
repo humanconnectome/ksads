@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import os
 from datetime import datetime
-from io import BytesIO
-
-import pandas as pd
 from robobrowser import RoboBrowser
 from ccf.config import LoadSettings
 
@@ -15,9 +12,7 @@ download_dir = config["download_dir"]
 
 def main():
     login()
-    filelist = download_all()
-
-    return filelist
+    download_all()
 
 
 def login():
@@ -51,11 +46,16 @@ def download(siteid, studytype, name):
     browser.submit_form(form, form["btnexportexcel"])
 
     # save results to file
+    timestamp = datetime.today().strftime("%Y-%m-%d")
+    filename = f"{download_dir}/{timestamp}/{name}-{studytype}.xlsx"
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     if browser.response.ok:
         content = browser.response.content
-        return pd.read_excel(BytesIO(content), parse_dates=["DateofInterview"])
-    else:
-        pd.DataFrame()
+        if content:
+            print("Saving file %s" % filename)
+            with open(filename, "wb+") as fd:
+                fd.write(content)
 
 
 def download_all():
@@ -65,34 +65,13 @@ def download_all():
 
     studytypes = config["forms"]
 
-    # the list of files that were downloaded, used as return value
-    files = []
-
     # go through ever iteration of study site/type
     for studytype in studytypes:
-        dfs = []
         for name, siteid in config["siteids"].items():
-            dfs.append(download(siteid, studytype, name))
+            download(siteid, studytype, name)
 
-        timestamp = datetime.today().strftime("%Y-%m-%d")
+    print("Download complete.")
 
-        filename = os.path.join(download_dir, "{date}/{type}.csv")
-        filename = filename.format(date=timestamp, type=studytype)
-        filename = os.path.abspath(filename)
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        files.append(filename)
-
-        df = pd.concat(dfs, sort=False).sort_values(["DateofInterview", "ID"])
-
-        df.columns = [
-            "ksads" + label if isnumeric else label.lower()
-            for label, isnumeric in zip(df.columns, df.columns.str.isnumeric())
-        ]
-
-        df.to_csv(filename, index=False)
-        print("Saving file %s" % filename)
-
-    return files
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ Redcap:
         sitenum: site
 secrets: ~/.ccf-secrets.yml
 KSADS:
-  download_dir: ./cache/
+  download_dir: ./cache
   siteids:
     Harvard: 37
     Minn: 38
