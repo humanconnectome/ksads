@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from IPython.core.display import display, HTML
 
-import PandasHelper as h
+import utils.PandasHelper as h
 from ksads_notebook import olddate, newdate, table, studyids, studydata, downloads_dir
 
 

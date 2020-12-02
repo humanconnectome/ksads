@@ -16,7 +16,6 @@
 # %%
 import os
 from collections import defaultdict
-from datetime import datetime
 import pandas as pd
 import re
 
@@ -50,8 +49,7 @@ def generate_snapshot_from_raw_excel_files(d = "2020-12-02"):
 
 
 # %%
-def generate_snapshot_from_old_combined_csv(d):
-    prefix = f"./cache/{d}"
+def generate_snapshot_from_old_combined_csv(prefix, d):
 
     intro = pd.read_csv(f"{prefix}/intro.csv", low_memory=False)
     screener = pd.read_csv(f"{prefix}/screener.csv", low_memory=False)
@@ -73,6 +71,7 @@ def generate_snapshot_from_old_combined_csv(d):
 # %%
 if __name__ == "__main__":
     for d in sorted(os.listdir('./cache/')):
+        prefix = f"./cache/{d}"
         if os.path.isdir(prefix):
             generate_snapshot_from_old_combined_csv(d)
 
