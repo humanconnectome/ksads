@@ -73,6 +73,5 @@ def download_all():
     print("Download complete.")
 
 
-
 if __name__ == "__main__":
     main()
