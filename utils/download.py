@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import os
+import re
+from collections import defaultdict
 from datetime import datetime
 from robobrowser import RoboBrowser
 from ccf.config import LoadSettings
+import pandas as pd
 
 browser = RoboBrowser(history=True, timeout=6000, parser="lxml")
 
@@ -13,6 +16,7 @@ download_dir = config["download_dir"]
 def main():
     login()
     download_all()
+    generate_snapshot_from_raw_excel_files()
 
 
 def login():
@@ -71,6 +75,38 @@ def download_all():
             download(siteid, studytype, name)
 
     print("Download complete.")
+
+
+def generate_snapshot_from_raw_excel_files(timestamp=None):
+    if timestamp is None:
+        timestamp = datetime.today().strftime("%Y-%m-%d")
+    prefix = f"{download_dir}/{timestamp}/"
+
+    dataframes = defaultdict(list)
+    for filename in os.listdir(prefix):
+        sitename, form = re.search("([^-]+)-(.+?)\.xlsx", filename).groups()
+        filename = f"{prefix}/{filename}"
+        df = pd.read_excel(filename, parse_dates=["DateofInterview"])
+        dataframes[form].append(df)
+
+    new_dfs = {}
+    for form, dfs in dataframes.items():
+        df = pd.concat(dfs, sort=False).sort_values(["DateofInterview", "ID"])
+
+        df.columns = [
+            "ksads" + label if isnumeric else label.lower()
+            for label, isnumeric in zip(df.columns, df.columns.str.isnumeric())
+        ]
+        df[f"{form}_complete"] = 1
+        new_dfs[form] = df
+
+    combined = (
+        new_dfs["intro"]
+        .merge(new_dfs["screener"], how="outer")
+        .merge(new_dfs["supplement"], how="outer")
+    )
+    print(timestamp, combined.shape)
+    combined.to_csv(f"{download_dir}/snapshot.{timestamp}.csv", index=False)
 
 
 if __name__ == "__main__":
